@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.2
+
+- Add idempotent Linux/macOS and Windows WebDAV bootstrap scripts.
+- Install Codex CLI, `codex-auth`, the synchronization agent, and its background service in one workflow.
+- Add automatic, seed, join, merge, and safe local-authoritative deployment roles with local backups.
+- Document multi-server installation order, conflict behavior, credential rotation, and authoritative cluster replacement.
+
 ## v0.1.1
 
 - Parse bounded HTTP list limits directly as native integers, resolving CodeQL integer-conversion findings.
