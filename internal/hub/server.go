@@ -72,7 +72,7 @@ func (s *Server) handleListEvents(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	limit, err := parseIntQuery(r, "limit", 500, 1, 500)
+	limit, err := parseIntQueryInt(r, "limit", 500, 1, 500)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -82,11 +82,11 @@ func (s *Server) handleListEvents(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	events, latest, notify := s.store.List(clusterID, after, int(limit))
+	events, latest, notify := s.store.List(clusterID, after, limit)
 	if len(events) == 0 && waitSeconds > 0 {
 		select {
 		case <-notify:
-			events, latest, _ = s.store.List(clusterID, after, int(limit))
+			events, latest, _ = s.store.List(clusterID, after, limit)
 		case <-time.After(time.Duration(waitSeconds) * time.Second):
 		case <-r.Context().Done():
 			return
@@ -166,6 +166,18 @@ func parseIntQuery(r *http.Request, name string, fallback, minimum, maximum int6
 		return fallback, nil
 	}
 	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed < minimum || parsed > maximum {
+		return 0, fmt.Errorf("%s must be between %d and %d", name, minimum, maximum)
+	}
+	return parsed, nil
+}
+
+func parseIntQueryInt(r *http.Request, name string, fallback, minimum, maximum int) (int, error) {
+	value := strings.TrimSpace(r.URL.Query().Get(name))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed < minimum || parsed > maximum {
 		return 0, fmt.Errorf("%s must be between %d and %d", name, minimum, maximum)
 	}
