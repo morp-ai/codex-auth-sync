@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.1
+
+- Parse bounded HTTP list limits directly as native integers, resolving CodeQL integer-conversion findings.
+- Update GitHub Actions dependencies and repository security automation.
+
 ## v0.1.0
 
 - Initial encrypted multi-machine synchronization agent.
