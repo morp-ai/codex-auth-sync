@@ -1,0 +1,14 @@
+services:
+  sync-server:
+    build: .
+    restart: unless-stopped
+    environment:
+      CODEX_AUTH_SYNC_SERVER_TOKEN: ${CODEX_AUTH_SYNC_SERVER_TOKEN:?set CODEX_AUTH_SYNC_SERVER_TOKEN}
+    command: ["serve", "--listen", "0.0.0.0:8787", "--data", "/data/events.json"]
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - codex-auth-sync-data:/data
+
+volumes:
+  codex-auth-sync-data:

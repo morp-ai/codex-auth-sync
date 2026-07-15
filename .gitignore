@@ -1,0 +1,13 @@
+/bin/
+/dist/
+/deploy/cloudflare-worker/node_modules/
+/deploy/cloudflare-worker/.wrangler/
+/deploy/cloudflare-worker/wrangler.toml
+/deploy/cloudflare-worker/.dev.vars
+/config.json
+/coverage.out
+.env
+.env.*
+*.tmp
+*.log
+.DS_Store

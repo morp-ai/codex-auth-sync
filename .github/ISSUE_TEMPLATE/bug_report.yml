@@ -1,0 +1,50 @@
+name: Bug report
+description: Report a reproducible synchronization or compatibility problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Never paste auth.json, access tokens, refresh tokens, API keys, sync keys, or WebDAV passwords.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux amd64
+        - Linux arm64
+        - macOS amd64
+        - macOS arm64
+        - Windows amd64
+        - Windows arm64
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - Built-in hub
+        - Cloudflare Workers + D1
+        - WebDAV
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include sanitized commands, expected behavior, and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs
+      render: text
