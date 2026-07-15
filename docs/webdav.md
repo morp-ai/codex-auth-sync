@@ -45,6 +45,8 @@ unset CODEX_AUTH_SYNC_WEBDAV_PASSWORD
 
 Bearer-authenticated WebDAV services can use `--webdav-bearer-token` or the `CODEX_AUTH_SYNC_WEBDAV_BEARER_TOKEN` environment variable instead.
 
+For a repeatable installation of Codex CLI, `codex-auth`, the synchronization agent, and its background service, see the [multi-server WebDAV bootstrap tutorial](webdav-multi-server.zh-CN.md).
+
 ## Storage Layout
 
 The cluster ID is SHA-256 hashed into a filename similar to:

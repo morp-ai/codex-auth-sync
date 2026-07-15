@@ -26,7 +26,8 @@ jobs:
           go test -race ./...
           go vet ./...
           node --check deploy/cloudflare-worker/src/index.js
-          sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh
+          sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh scripts/bootstrap-webdav.sh
+          sh tests/bootstrap-webdav.sh
       - name: Build release artifacts
         env:
           VERSION: ${{ github.ref_name }}

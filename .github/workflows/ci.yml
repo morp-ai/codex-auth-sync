@@ -18,4 +18,33 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
       - run: node --check deploy/cloudflare-worker/src/index.js
+      - run: sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh scripts/bootstrap-webdav.sh
+      - run: sh tests/bootstrap-webdav.sh
       - run: VERSION=ci ./scripts/build-all.sh
+
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Parse PowerShell installers
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($path in @(
+            "scripts/install.ps1",
+            "scripts/install-service.ps1",
+            "scripts/bootstrap-webdav.ps1"
+          )) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $path),
+              [ref]$tokens,
+              [ref]$errors
+            ) > $null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$path`: $_" }
+              $failed = $true
+            }
+          }
+          if ($failed) { exit 1 }

@@ -61,6 +61,8 @@ curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/script
 
 Koofr 已经过真实服务测试。WebDAV 服务必须支持强 ETag、`If-Match` 和条件 PUT；不满足安全并发要求时，客户端会拒绝启用。
 
+需要从零安装 Codex CLI、`codex-auth`、同步工具和后台服务，或需要区分首台种子服务器、云端覆盖和账号合并时，请使用[WebDAV 多服务器一键部署教程](docs/webdav-multi-server.zh-CN.md)。
+
 ## 同步内容
 
 | 内容 | 默认行为 |

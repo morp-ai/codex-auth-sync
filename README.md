@@ -86,6 +86,8 @@ curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/script
 
 Koofr has been tested against the real service endpoint. The WebDAV backend requires HTTPS and strong ETag/`If-Match` support so simultaneous writers cannot silently overwrite each other. See [docs/webdav.md](docs/webdav.md).
 
+For an end-to-end Chinese tutorial covering installation order, seed/join/merge modes, conflict handling, and the cross-platform bootstrap scripts, see [docs/webdav-multi-server.zh-CN.md](docs/webdav-multi-server.zh-CN.md).
+
 ## Backend Choices
 
 | Backend | Cost | Typical latency | Best for |
