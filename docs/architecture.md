@@ -23,6 +23,18 @@ The agent polls local state at a configurable interval. Polling is used instead 
 
 Before writing `registry.json`, the agent verifies that the file has not changed since it was read. If `codex-auth` modifies it concurrently, the agent reloads, merges, and retries. Sensitive files use same-directory temporary files, `fsync`, atomic replacement where available, and private Unix modes.
 
+## Registry Schema Adapters
+
+The agent preserves the registry schema already used on each machine:
+
+- schema v2 keeps the legacy `version`, `active_email`, email-keyed snapshot filenames, and legacy account record layout;
+- schema v3 keeps `schema_version: 3`, `auto_switch`, `api`, and the v3 active-account fields;
+- schema v4 keeps `previous_active_account_key`, `interval_seconds`, and the v4 layout.
+
+For schema v2 ChatGPT accounts, the canonical cross-machine account key is derived from the authenticated `id_token` claims and `tokens.account_id`, while adapter-only identity fields are removed again before the v2 registry is written. Records whose legacy snapshot cannot provide a verified identity remain untouched locally and are not published.
+
+Only settings understood by the local schema are applied. In particular, the live refresh interval is synchronized among schema v4 nodes and ignored by v2/v3 nodes. Unknown newer schemas are rejected before any write.
+
 ## Conflict Rules
 
 - Server revisions define event order.

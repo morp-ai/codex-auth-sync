@@ -45,7 +45,7 @@ curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/script
 
 脚本会：
 
-1. 分别检查 OpenAI Codex CLI 和 `codex-auth`；已经存在的安装会保留，只安装缺失项。
+1. 分别检查 OpenAI Codex CLI 和 `codex-auth`；已有安装及版本会原样保留，只通过官方稳定 npm 命令安装缺失项。
 2. 需要安装 npm 包但缺少 npm 时，才尝试通过系统包管理器安装 Node.js 和 npm。
 3. 下载与 CPU/系统匹配的 `codex-auth-sync`，并校验 SHA-256。
 4. 隐藏读取 WebDAV 应用密码。
@@ -205,5 +205,6 @@ codex-auth-sync status
 - 所有工具必须使用同一个 `CODEX_HOME`；默认是 `~/.codex`。
 - 首次 seed 或 join 时不要同时运行 `codex-auth login`、`switch`、`remove`。
 - `codex-auth` 不需要也不应该注册后台自启动服务。
+- 同步外挂会识别并保留本机 `codex-auth` registry schema；不同服务器可以运行 schema v2、v3 或 v4 的版本，外挂不会替用户升级或降级原工具。
 - 若已有旧同步配置，一键脚本会先备份配置和状态，再重新初始化。
 - 不同用途的服务器可以使用不同 active group；账号仍共享，但活动账号不会跨 group 强制切换。

@@ -52,7 +52,21 @@ func (manager *Manager) ApplyAccount(payload model.AccountUpsertPayload) error {
 	if err := manager.ensureAccountsDir(); err != nil {
 		return err
 	}
-	snapshotPath := AccountSnapshotPath(manager.CodexHome, payload.AccountKey)
+	_, currentRegistry, err := loadRegistry(manager.CodexHome)
+	if err != nil {
+		return err
+	}
+	if currentRegistry.SchemaVersion == 2 && currentRegistry.UsesLegacyEmailLayout() {
+		identity, identityErr := ParseAuthIdentity(snapshot)
+		recordEmail, _ := record.String("email")
+		if identityErr != nil || identity.AccountKey != payload.AccountKey || !strings.EqualFold(identity.Email, recordEmail) {
+			return errors.New("synchronized account cannot be represented safely in schema v2")
+		}
+	}
+	snapshotPath, err := currentRegistry.AccountSnapshotPath(manager.CodexHome, record)
+	if err != nil {
+		return err
+	}
 	localSnapshot, readErr := os.ReadFile(snapshotPath)
 	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
 		return readErr
@@ -64,7 +78,14 @@ func (manager *Manager) ApplyAccount(payload model.AccountUpsertPayload) error {
 		}
 	}
 	if err := manager.mutateRegistry(func(registry *Registry) error {
+		if registry.SchemaVersion == 2 && registry.UsesLegacyEmailLayout() {
+			record.LegacyAdapter = true
+		}
 		index, existing := registry.Find(payload.AccountKey)
+		if existing == nil && registry.SchemaVersion == 2 {
+			email, _ := record.String("email")
+			index, existing = registry.FindEmail(email)
+		}
 		if existing == nil {
 			registry.Accounts = append(registry.Accounts, record)
 			return nil
@@ -125,36 +146,64 @@ func (manager *Manager) DeleteAccount(payload model.AccountDeletePayload) error 
 	defer manager.mu.Unlock()
 	var newActive string
 	var activeWasDeleted bool
+	var deletedSnapshotPath string
+	var newActiveSnapshotPath string
 	if err := manager.mutateRegistry(func(registry *Registry) error {
-		index, _ := registry.Find(payload.AccountKey)
+		index, record := registry.Find(payload.AccountKey)
 		if index < 0 {
 			return nil
+		}
+		var err error
+		deletedSnapshotPath, err = registry.AccountSnapshotPath(manager.CodexHome, record)
+		if err != nil {
+			return err
 		}
 		activeWasDeleted = registry.ActiveAccountKey() == payload.AccountKey
 		registry.Accounts = append(registry.Accounts[:index], registry.Accounts[index+1:]...)
 		if activeWasDeleted {
 			oldActive := payload.AccountKey
-			if len(registry.Accounts) > 0 {
-				newActive, _ = registry.Accounts[0].String("account_key")
+			for _, candidate := range registry.Accounts {
+				candidateKey, _ := candidate.String("account_key")
+				if candidateKey == "" {
+					continue
+				}
+				newActive = candidateKey
+				newActiveSnapshotPath, err = registry.AccountSnapshotPath(manager.CodexHome, candidate)
+				if err != nil {
+					return err
+				}
+				break
 			}
-			setOptionalString(registry.Root, "previous_active_account_key", oldActive)
-			setOptionalString(registry.Root, "active_account_key", newActive)
-			if newActive == "" {
-				registry.Root["active_account_activated_at_ms"] = json.RawMessage("null")
+			if registry.SchemaVersion == 2 && registry.UsesLegacyEmailLayout() {
+				setOptionalString(registry.Root, "active_email", registry.AccountEmail(newActive))
 			} else {
-				registry.Root["active_account_activated_at_ms"] = json.RawMessage(fmt.Sprintf("%d", time.Now().UnixMilli()))
+				if registry.SchemaVersion >= 4 {
+					setOptionalString(registry.Root, "previous_active_account_key", oldActive)
+				}
+				setOptionalString(registry.Root, "active_account_key", newActive)
+			}
+			if newActive == "" {
+				if registry.SchemaVersion >= 3 {
+					registry.Root["active_account_activated_at_ms"] = json.RawMessage("null")
+				}
+			} else {
+				if registry.SchemaVersion >= 3 {
+					registry.Root["active_account_activated_at_ms"] = json.RawMessage(fmt.Sprintf("%d", time.Now().UnixMilli()))
+				}
 			}
 		}
 		return nil
 	}); err != nil {
 		return err
 	}
-	_ = os.Remove(AccountSnapshotPath(manager.CodexHome, payload.AccountKey))
+	if deletedSnapshotPath != "" {
+		_ = os.Remove(deletedSnapshotPath)
+	}
 	if activeWasDeleted {
 		if newActive == "" {
 			return manager.removeActiveAuth()
 		}
-		snapshot, err := os.ReadFile(AccountSnapshotPath(manager.CodexHome, newActive))
+		snapshot, err := os.ReadFile(newActiveSnapshotPath)
 		if err != nil {
 			return err
 		}
@@ -168,8 +217,19 @@ func (manager *Manager) ApplyActive(payload model.ActiveSetPayload) error {
 	defer manager.mu.Unlock()
 	var snapshot []byte
 	if payload.AccountKey != "" {
-		var err error
-		snapshot, err = os.ReadFile(AccountSnapshotPath(manager.CodexHome, payload.AccountKey))
+		_, registry, err := loadRegistry(manager.CodexHome)
+		if err != nil {
+			return err
+		}
+		_, record := registry.Find(payload.AccountKey)
+		if record == nil {
+			return fmt.Errorf("active account %q is not available locally", payload.AccountKey)
+		}
+		snapshotPath, err := registry.AccountSnapshotPath(manager.CodexHome, record)
+		if err != nil {
+			return err
+		}
+		snapshot, err = os.ReadFile(snapshotPath)
 		if err != nil {
 			return fmt.Errorf("load active account snapshot: %w", err)
 		}
@@ -184,12 +244,22 @@ func (manager *Manager) ApplyActive(payload model.ActiveSetPayload) error {
 		if current == payload.AccountKey {
 			return nil
 		}
-		setOptionalString(registry.Root, "previous_active_account_key", current)
-		setOptionalString(registry.Root, "active_account_key", payload.AccountKey)
-		if payload.AccountKey == "" {
-			registry.Root["active_account_activated_at_ms"] = json.RawMessage("null")
+		if registry.SchemaVersion == 2 && registry.UsesLegacyEmailLayout() {
+			setOptionalString(registry.Root, "active_email", registry.AccountEmail(payload.AccountKey))
 		} else {
-			registry.Root["active_account_activated_at_ms"] = json.RawMessage(fmt.Sprintf("%d", time.Now().UnixMilli()))
+			if registry.SchemaVersion >= 4 {
+				setOptionalString(registry.Root, "previous_active_account_key", current)
+			}
+			setOptionalString(registry.Root, "active_account_key", payload.AccountKey)
+		}
+		if payload.AccountKey == "" {
+			if registry.SchemaVersion >= 3 {
+				registry.Root["active_account_activated_at_ms"] = json.RawMessage("null")
+			}
+		} else {
+			if registry.SchemaVersion >= 3 {
+				registry.Root["active_account_activated_at_ms"] = json.RawMessage(fmt.Sprintf("%d", time.Now().UnixMilli()))
+			}
 		}
 		return nil
 	}); err != nil {
@@ -208,6 +278,9 @@ func (manager *Manager) ApplySettings(payload model.SettingsSetPayload) error {
 		return errors.New("synchronized interval_seconds is outside the supported range")
 	}
 	return manager.mutateRegistry(func(registry *Registry) error {
+		if registry.SchemaVersion < 4 {
+			return nil
+		}
 		registry.Root["interval_seconds"] = json.RawMessage(fmt.Sprintf("%d", payload.IntervalSeconds))
 		return nil
 	})
@@ -309,6 +382,7 @@ func (manager *Manager) backupFile(source, baseName string) error {
 
 func mergeAccountRecord(local, remote *Record) *Record {
 	merged := remote.Clone()
+	merged.LegacyAdapter = local.LegacyAdapter
 	for _, name := range []string{"alias", "last_used_at", "last_usage", "last_usage_at", "last_local_rollout"} {
 		if value, ok := local.Fields[name]; ok {
 			merged.Fields[name] = append(json.RawMessage(nil), value...)

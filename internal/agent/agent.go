@@ -352,14 +352,16 @@ func (agent *Agent) pushLocalChanges(ctx context.Context) (int, error) {
 		agent.state.ActiveAccount = local.ActiveAccount
 		pushed++
 	}
-	settingsHash := strconv.Itoa(local.IntervalSeconds)
-	if agent.state.SettingsHash != settingsHash {
-		payload := model.SettingsSetPayload{IntervalSeconds: local.IntervalSeconds}
-		if err := agent.pushPayload(ctx, model.KindSettingsSet, secure.EntityID(agent.key, "settings", "registry"), payload); err != nil {
-			return pushed, err
+	if local.SupportsInterval {
+		settingsHash := strconv.Itoa(local.IntervalSeconds)
+		if agent.state.SettingsHash != settingsHash {
+			payload := model.SettingsSetPayload{IntervalSeconds: local.IntervalSeconds}
+			if err := agent.pushPayload(ctx, model.KindSettingsSet, secure.EntityID(agent.key, "settings", "registry"), payload); err != nil {
+				return pushed, err
+			}
+			agent.state.SettingsHash = settingsHash
+			pushed++
 		}
-		agent.state.SettingsHash = settingsHash
-		pushed++
 	}
 	return pushed, nil
 }

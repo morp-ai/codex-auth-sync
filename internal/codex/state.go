@@ -16,18 +16,23 @@ import (
 
 const (
 	CurrentRegistrySchema = 4
+	DefaultRegistrySchema = 3
+	MinimumRegistrySchema = 2
 	DefaultLiveInterval   = 60
 )
 
 var ErrUnsupportedRegistry = errors.New("unsupported codex-auth registry schema")
 
 type Record struct {
-	Fields map[string]json.RawMessage
+	Fields        map[string]json.RawMessage
+	LegacyAdapter bool
 }
 
 type Registry struct {
-	Root     map[string]json.RawMessage
-	Accounts []*Record
+	SchemaVersion int
+	SchemaField   string
+	Root          map[string]json.RawMessage
+	Accounts      []*Record
 }
 
 type LocalAccount struct {
@@ -43,10 +48,12 @@ type LocalAccount struct {
 }
 
 type LocalState struct {
-	Accounts        map[string]LocalAccount
-	AccountOrder    []string
-	ActiveAccount   string
-	IntervalSeconds int
+	Accounts         map[string]LocalAccount
+	AccountOrder     []string
+	ActiveAccount    string
+	IntervalSeconds  int
+	RegistrySchema   int
+	SupportsInterval bool
 }
 
 func ReadLocalState(codexHome string) (LocalState, error) {
@@ -54,10 +61,13 @@ func ReadLocalState(codexHome string) (LocalState, error) {
 	if err != nil {
 		return LocalState{}, err
 	}
+	interval, supportsInterval := registry.IntervalSeconds()
 	state := LocalState{
-		Accounts:        make(map[string]LocalAccount),
-		ActiveAccount:   registry.ActiveAccountKey(),
-		IntervalSeconds: registry.IntervalSeconds(),
+		Accounts:         make(map[string]LocalAccount),
+		ActiveAccount:    registry.ActiveAccountKey(),
+		IntervalSeconds:  interval,
+		RegistrySchema:   registry.SchemaVersion,
+		SupportsInterval: supportsInterval,
 	}
 	for _, record := range registry.Accounts {
 		key, err := record.String("account_key")
@@ -68,7 +78,11 @@ func ReadLocalState(codexHome string) (LocalState, error) {
 		if err != nil {
 			return LocalState{}, err
 		}
-		snapshot, err := os.ReadFile(AccountSnapshotPath(codexHome, key))
+		snapshotPath, err := registry.AccountSnapshotPath(codexHome, record)
+		if err != nil {
+			return LocalState{}, err
+		}
+		snapshot, err := os.ReadFile(snapshotPath)
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return LocalState{}, err
 		}
@@ -108,6 +122,11 @@ func AccountSnapshotPath(codexHome, accountKey string) string {
 	return filepath.Join(codexHome, "accounts", AccountSnapshotFileName(accountKey))
 }
 
+func LegacyAccountSnapshotPath(codexHome, email string) string {
+	filename := base64.RawURLEncoding.EncodeToString([]byte(strings.ToLower(strings.TrimSpace(email)))) + ".auth.json"
+	return filepath.Join(codexHome, "accounts", filename)
+}
+
 func ActiveAuthPath(codexHome string) string {
 	return filepath.Join(codexHome, "auth.json")
 }
@@ -129,7 +148,7 @@ func (record *Record) Clone() *Record {
 	for key, value := range record.Fields {
 		fields[key] = append(json.RawMessage(nil), value...)
 	}
-	return &Record{Fields: fields}
+	return &Record{Fields: fields, LegacyAdapter: record.LegacyAdapter}
 }
 
 func (record *Record) Marshal() ([]byte, error) {
@@ -170,6 +189,35 @@ func (record *Record) Int64OrZero(name string) int64 {
 }
 
 func (registry *Registry) ActiveAccountKey() string {
+	if registry.SchemaVersion == 2 {
+		if !registry.UsesLegacyEmailLayout() {
+			raw, ok := registry.Root["active_account_key"]
+			if !ok {
+				return ""
+			}
+			var value *string
+			if err := json.Unmarshal(raw, &value); err != nil || value == nil {
+				return ""
+			}
+			return *value
+		}
+		raw, ok := registry.Root["active_email"]
+		if !ok {
+			return ""
+		}
+		var email *string
+		if err := json.Unmarshal(raw, &email); err != nil || email == nil {
+			return ""
+		}
+		for _, record := range registry.Accounts {
+			recordEmail, _ := record.String("email")
+			if strings.EqualFold(recordEmail, *email) {
+				key, _ := record.String("account_key")
+				return key
+			}
+		}
+		return ""
+	}
 	raw, ok := registry.Root["active_account_key"]
 	if !ok {
 		return ""
@@ -181,19 +229,34 @@ func (registry *Registry) ActiveAccountKey() string {
 	return *value
 }
 
-func (registry *Registry) IntervalSeconds() int {
+func (registry *Registry) UsesLegacyEmailLayout() bool {
+	if registry.SchemaVersion != 2 {
+		return false
+	}
+	_, hasActiveEmail := registry.Root["active_email"]
+	_, hasActiveKey := registry.Root["active_account_key"]
+	return hasActiveEmail || !hasActiveKey
+}
+
+func (registry *Registry) IntervalSeconds() (int, bool) {
+	if registry.SchemaVersion < 4 {
+		return DefaultLiveInterval, false
+	}
 	raw, ok := registry.Root["interval_seconds"]
 	if !ok {
-		return DefaultLiveInterval
+		return DefaultLiveInterval, true
 	}
 	var value int
 	if err := json.Unmarshal(raw, &value); err != nil || value < 5 || value > 3600 {
-		return DefaultLiveInterval
+		return DefaultLiveInterval, true
 	}
-	return value
+	return value, true
 }
 
 func (registry *Registry) Find(accountKey string) (int, *Record) {
+	if strings.TrimSpace(accountKey) == "" {
+		return -1, nil
+	}
 	for index, record := range registry.Accounts {
 		key, _ := record.String("account_key")
 		if key == accountKey {
@@ -203,10 +266,51 @@ func (registry *Registry) Find(accountKey string) (int, *Record) {
 	return -1, nil
 }
 
+func (registry *Registry) FindEmail(email string) (int, *Record) {
+	for index, record := range registry.Accounts {
+		recordEmail, _ := record.String("email")
+		if strings.EqualFold(recordEmail, email) {
+			return index, record
+		}
+	}
+	return -1, nil
+}
+
+func (registry *Registry) AccountSnapshotPath(codexHome string, record *Record) (string, error) {
+	if registry.SchemaVersion == 2 && (record.LegacyAdapter || registry.UsesLegacyEmailLayout()) {
+		email, err := record.String("email")
+		if err != nil || strings.TrimSpace(email) == "" {
+			return "", errors.New("schema v2 account record is missing email")
+		}
+		return LegacyAccountSnapshotPath(codexHome, email), nil
+	}
+	key, err := record.String("account_key")
+	if err != nil || strings.TrimSpace(key) == "" {
+		return "", errors.New("account record is missing account_key")
+	}
+	return AccountSnapshotPath(codexHome, key), nil
+}
+
+func (registry *Registry) AccountEmail(accountKey string) string {
+	_, record := registry.Find(accountKey)
+	if record == nil {
+		return ""
+	}
+	email, _ := record.String("email")
+	return email
+}
+
 func (registry *Registry) Marshal() ([]byte, error) {
 	accounts := make([]json.RawMessage, 0, len(registry.Accounts))
 	for _, record := range registry.Accounts {
-		raw, err := record.Marshal()
+		outputRecord := record
+		if record.LegacyAdapter {
+			outputRecord = record.Clone()
+			for _, field := range []string{"account_key", "chatgpt_account_id", "chatgpt_user_id", "account_name", "last_local_rollout"} {
+				delete(outputRecord.Fields, field)
+			}
+		}
+		raw, err := outputRecord.Marshal()
 		if err != nil {
 			return nil, err
 		}
@@ -217,7 +321,13 @@ func (registry *Registry) Marshal() ([]byte, error) {
 		return nil, err
 	}
 	registry.Root["accounts"] = accountsRaw
-	registry.Root["schema_version"] = json.RawMessage("4")
+	if registry.SchemaField == "version" {
+		registry.Root["version"] = json.RawMessage(fmt.Sprintf("%d", registry.SchemaVersion))
+		delete(registry.Root, "schema_version")
+	} else {
+		registry.Root["schema_version"] = json.RawMessage(fmt.Sprintf("%d", registry.SchemaVersion))
+		delete(registry.Root, "version")
+	}
 	data, err := json.MarshalIndent(registry.Root, "", "  ")
 	if err != nil {
 		return nil, err
@@ -240,14 +350,18 @@ func loadRegistry(codexHome string) ([]byte, *Registry, error) {
 		return nil, nil, fmt.Errorf("parse registry.json: %w", err)
 	}
 	var schema int
+	schemaField := "schema_version"
 	if raw, ok := root["schema_version"]; ok {
 		_ = json.Unmarshal(raw, &schema)
+	} else if raw, ok := root["version"]; ok {
+		_ = json.Unmarshal(raw, &schema)
+		schemaField = "version"
 	}
 	if schema > CurrentRegistrySchema {
 		return nil, nil, fmt.Errorf("%w: schema_version=%d", ErrUnsupportedRegistry, schema)
 	}
-	if schema == 0 {
-		return nil, nil, errors.New("registry.json is missing schema_version")
+	if schema < MinimumRegistrySchema {
+		return nil, nil, fmt.Errorf("%w: schema_version=%d", ErrUnsupportedRegistry, schema)
 	}
 	var accountMessages []json.RawMessage
 	if raw, ok := root["accounts"]; ok {
@@ -255,11 +369,14 @@ func loadRegistry(codexHome string) ([]byte, *Registry, error) {
 			return nil, nil, fmt.Errorf("parse registry accounts: %w", err)
 		}
 	}
-	registry := &Registry{Root: root, Accounts: make([]*Record, 0, len(accountMessages))}
+	registry := &Registry{SchemaVersion: schema, SchemaField: schemaField, Root: root, Accounts: make([]*Record, 0, len(accountMessages))}
 	for _, message := range accountMessages {
 		record, err := ParseRecord(message)
 		if err != nil {
 			return nil, nil, fmt.Errorf("parse account record: %w", err)
+		}
+		if schema == 2 {
+			_ = adaptLegacyRecord(codexHome, record)
 		}
 		registry.Accounts = append(registry.Accounts, record)
 	}
@@ -268,16 +385,53 @@ func loadRegistry(codexHome string) ([]byte, *Registry, error) {
 
 func defaultRegistry() *Registry {
 	return &Registry{
+		SchemaVersion: DefaultRegistrySchema,
+		SchemaField:   "schema_version",
 		Root: map[string]json.RawMessage{
-			"schema_version":                 json.RawMessage("4"),
+			"schema_version":                 json.RawMessage("3"),
 			"active_account_key":             json.RawMessage("null"),
-			"previous_active_account_key":    json.RawMessage("null"),
 			"active_account_activated_at_ms": json.RawMessage("null"),
-			"interval_seconds":               json.RawMessage("60"),
+			"auto_switch":                    json.RawMessage(`{"enabled":false,"threshold_5h_percent":10,"threshold_weekly_percent":5}`),
+			"api":                            json.RawMessage(`{"usage":true,"account":true}`),
 			"accounts":                       json.RawMessage("[]"),
 		},
 		Accounts: []*Record{},
 	}
+}
+
+func adaptLegacyRecord(codexHome string, record *Record) error {
+	email, err := record.String("email")
+	if err != nil || strings.TrimSpace(email) == "" {
+		return errors.New("schema v2 account record is missing email")
+	}
+	snapshot, err := os.ReadFile(LegacyAccountSnapshotPath(codexHome, email))
+	if err != nil {
+		return err
+	}
+	identity, err := ParseAuthIdentity(snapshot)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(identity.Email, email) {
+		return errors.New("schema v2 account email does not match auth snapshot")
+	}
+	for name, value := range map[string]string{
+		"account_key":        identity.AccountKey,
+		"chatgpt_account_id": identity.ChatGPTAccountID,
+		"chatgpt_user_id":    identity.ChatGPTUserID,
+	} {
+		if err := record.SetString(name, value); err != nil {
+			return err
+		}
+	}
+	if _, ok := record.Fields["account_name"]; !ok {
+		record.Fields["account_name"] = json.RawMessage("null")
+	}
+	if _, ok := record.Fields["last_local_rollout"]; !ok {
+		record.Fields["last_local_rollout"] = json.RawMessage("null")
+	}
+	record.LegacyAdapter = true
+	return nil
 }
 
 func hashRecord(record *Record, includeAlias bool) string {

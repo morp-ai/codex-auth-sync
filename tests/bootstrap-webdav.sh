@@ -68,7 +68,29 @@ case "$url" in
 esac
 EOF
 
-chmod 755 "$TEST_ROOT/fixtures/codex-auth-sync" "$TEST_ROOT/bin/curl"
+cat > "$TEST_ROOT/bin/codex" <<'EOF'
+#!/usr/bin/env sh
+exit 0
+EOF
+
+cat > "$TEST_ROOT/bin/codex-auth" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+case "${1:-}" in
+  --version) printf '%s\n' 'codex-auth existing-version' ;;
+  login) exit 0 ;;
+  *) exit 0 ;;
+esac
+EOF
+
+cat > "$TEST_ROOT/bin/npm" <<'EOF'
+#!/usr/bin/env sh
+set -eu
+printf '%s\n' "$*" > "$HOME/npm-invocation"
+EOF
+
+chmod 755 "$TEST_ROOT/fixtures/codex-auth-sync" "$TEST_ROOT/bin/curl" \
+  "$TEST_ROOT/bin/codex" "$TEST_ROOT/bin/codex-auth" "$TEST_ROOT/bin/npm"
 
 run_bootstrap() {
   home=$1
@@ -136,4 +158,60 @@ test -f "$local_home/.codex/accounts/local.auth.json"
 test -f "$local_home/.config/codex-auth-sync/config.json"
 test -f "$local_home/service-installed"
 
-echo "WebDAV bootstrap seed, join, and local-authoritative tests passed."
+compatible_home="$TEST_ROOT/compatible-home"
+mkdir -p "$compatible_home/.codex/accounts"
+printf '%s\n' '{"tokens":{"access_token":"compatible"}}' > "$compatible_home/.codex/accounts/local.auth.json"
+HOME="$compatible_home" \
+XDG_CONFIG_HOME="$compatible_home/.config" \
+PATH="$TEST_ROOT/bin:/usr/bin:/bin" \
+TEST_FIXTURE="$TEST_ROOT/fixtures" \
+TEST_REMOTE_STATUS=404 \
+CODEX_AUTH_SYNC_WEBDAV_PASSWORD=test-password \
+CODEX_AUTH_SYNC_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+CODEX_AUTH_SYNC_INSTALL_DIR="$compatible_home/.local/bin" \
+sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
+  --server https://webdav.example.test/root \
+  --username test@example.com \
+  --cluster compatible-cluster \
+  --role seed
+test ! -e "$compatible_home/npm-invocation"
+
+existing_home="$TEST_ROOT/existing-home"
+mkdir -p "$existing_home/.codex/accounts"
+printf '%s\n' '{"tokens":{"access_token":"existing"}}' > "$existing_home/.codex/accounts/local.auth.json"
+HOME="$existing_home" \
+XDG_CONFIG_HOME="$existing_home/.config" \
+PATH="$TEST_ROOT/bin:/usr/bin:/bin" \
+TEST_FIXTURE="$TEST_ROOT/fixtures" \
+TEST_REMOTE_STATUS=404 \
+CODEX_AUTH_SYNC_WEBDAV_PASSWORD=test-password \
+CODEX_AUTH_SYNC_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+CODEX_AUTH_SYNC_INSTALL_DIR="$existing_home/.local/bin" \
+sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
+  --server https://webdav.example.test/root \
+  --username test@example.com \
+  --cluster existing-cluster \
+  --role seed
+test ! -e "$existing_home/npm-invocation"
+
+missing_home="$TEST_ROOT/missing-home"
+missing_bin="$TEST_ROOT/missing-bin"
+mkdir -p "$missing_home/.codex/accounts" "$missing_bin"
+cp "$TEST_ROOT/bin/curl" "$TEST_ROOT/bin/npm" "$missing_bin/"
+printf '%s\n' '{"tokens":{"access_token":"missing"}}' > "$missing_home/.codex/accounts/local.auth.json"
+HOME="$missing_home" \
+XDG_CONFIG_HOME="$missing_home/.config" \
+PATH="$missing_bin:/usr/bin:/bin" \
+TEST_FIXTURE="$TEST_ROOT/fixtures" \
+TEST_REMOTE_STATUS=404 \
+CODEX_AUTH_SYNC_WEBDAV_PASSWORD=test-password \
+CODEX_AUTH_SYNC_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+CODEX_AUTH_SYNC_INSTALL_DIR="$missing_home/.local/bin" \
+sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
+  --server https://webdav.example.test/root \
+  --username test@example.com \
+  --cluster missing-cluster \
+  --role seed
+grep -F '@openai/codex @loongphy/codex-auth' "$missing_home/npm-invocation" >/dev/null
+
+echo "WebDAV bootstrap role and codex-auth compatibility tests passed."
