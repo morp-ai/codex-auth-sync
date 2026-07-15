@@ -86,6 +86,6 @@ Koofr 已经过真实服务测试。WebDAV 服务必须支持强 ETag、`If-Matc
 - `sync_key`、WebDAV 应用密码和 Hub API Token 都是敏感信息。
 - 拥有同一个 sync key 的服务器可以解密整个集群的账号凭据。
 - 已经运行的 Codex 进程可能缓存认证信息，远程切换后可能需要启动新进程或重启客户端。
-- 当前版本支持 `codex-auth` registry schema v4；遇到未知新 schema 会拒绝写入。
+- 当前版本会原样适配 `codex-auth` registry schema v2、v3 和 v4，不升级或降级原工具；遇到未知新 schema 会拒绝写入。
 
 完整技术文档与构建说明请查看 [English README](README.md)。

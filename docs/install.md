@@ -56,4 +56,4 @@ The sidecar can restore the synchronized files without invoking `codex-auth`, bu
 npm install -g @loongphy/codex-auth
 ```
 
-Only this one-time binary installation is machine-specific. Account login state and synchronized configuration are pulled automatically afterward.
+The sidecar adapts to the registry schema used by the installed `codex-auth` release and does not upgrade or downgrade it. Existing installations are preserved; missing installations use the official stable npm command above. Only this one-time binary installation is machine-specific. Account login state and synchronized configuration are pulled automatically afterward.

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.3
+
+- Preserve installed `codex-auth` versions and use the official stable npm package only when it is missing.
+- Add schema-preserving adapters for codex-auth registry schemas v2, v3, and v4.
+- Synchronize common account semantics across mixed-version servers without writing newer fields into older registries.
+
 ## v0.1.2
 
 - Add idempotent Linux/macOS and Windows WebDAV bootstrap scripts.

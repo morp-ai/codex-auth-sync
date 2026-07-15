@@ -17,7 +17,7 @@ It synchronizes encrypted account snapshots, aliases, selected registry settings
 - Multi-writer event log with monotonic revisions, conditional conflict handling, and event deduplication.
 - Protects newer refreshed tokens from being overwritten by older snapshots.
 - Supports local, group, and global active-account synchronization.
-- Preserves the current `codex-auth` schema v4 layout, filename encoding, backups, and Unix permissions.
+- Preserves each machine's installed `codex-auth` schema v2, v3, or v4 layout, filename encoding, backups, and Unix permissions.
 - Runs as a single native binary on the same platforms as `codex-auth`:
   - Linux x64 and arm64
   - macOS x64 and arm64
@@ -200,7 +200,7 @@ All CLI output, prompts, warnings, and errors are in English.
 
 ## Compatibility Boundary
 
-This release reads and writes `codex-auth` registry schema v4. It refuses to modify a newer unknown schema rather than risking credential or registry damage. Update `codex-auth-sync` after a future `codex-auth` schema migration.
+This release adapts to `codex-auth` registry schemas v2, v3, and v4 without upgrading or downgrading the installed tool. It refuses to modify a newer unknown schema rather than risking credential or registry damage. Update `codex-auth-sync` after a future schema migration.
 
 ## License
 

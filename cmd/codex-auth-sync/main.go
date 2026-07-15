@@ -218,6 +218,7 @@ func runStatus(args []string) error {
 	fmt.Printf("Cluster: %s\n", cfg.ClusterID)
 	fmt.Printf("Node: %s\n", cfg.NodeID)
 	fmt.Printf("Codex home: %s\n", syncAgent.CodexHome())
+	fmt.Printf("Codex auth registry schema: %d\n", local.RegistrySchema)
 	fmt.Printf("Accounts: %d\n", len(local.Accounts))
 	if local.ActiveAccount == "" {
 		fmt.Println("Active account: none")

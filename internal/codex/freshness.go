@@ -3,10 +3,80 @@ package codex
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 )
+
+type AuthIdentity struct {
+	AccountKey       string
+	ChatGPTAccountID string
+	ChatGPTUserID    string
+	Email            string
+}
+
+func ParseAuthIdentity(snapshot []byte) (AuthIdentity, error) {
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(snapshot, &root); err != nil {
+		return AuthIdentity{}, err
+	}
+	var tokens map[string]json.RawMessage
+	if raw, ok := root["tokens"]; !ok || json.Unmarshal(raw, &tokens) != nil {
+		return AuthIdentity{}, errors.New("auth snapshot is missing tokens")
+	}
+	accountID := jsonString(tokens["account_id"])
+	idToken := jsonString(tokens["id_token"])
+	if accountID == "" || idToken == "" {
+		return AuthIdentity{}, errors.New("auth snapshot is missing account identity fields")
+	}
+	parts := strings.Split(idToken, ".")
+	if len(parts) < 2 {
+		return AuthIdentity{}, errors.New("auth snapshot id_token is not a JWT")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return AuthIdentity{}, fmt.Errorf("decode auth snapshot id_token: %w", err)
+	}
+	var claims map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return AuthIdentity{}, fmt.Errorf("parse auth snapshot id_token: %w", err)
+	}
+	email := strings.ToLower(strings.TrimSpace(jsonString(claims["email"])))
+	var authClaims map[string]json.RawMessage
+	if raw, ok := claims["https://api.openai.com/auth"]; !ok || json.Unmarshal(raw, &authClaims) != nil {
+		return AuthIdentity{}, errors.New("auth snapshot id_token is missing OpenAI auth claims")
+	}
+	jwtAccountID := jsonString(authClaims["chatgpt_account_id"])
+	userID := jsonString(authClaims["chatgpt_user_id"])
+	if userID == "" {
+		userID = jsonString(authClaims["user_id"])
+	}
+	if email == "" || jwtAccountID == "" || userID == "" {
+		return AuthIdentity{}, errors.New("auth snapshot id_token is missing account identity claims")
+	}
+	if accountID != jwtAccountID {
+		return AuthIdentity{}, errors.New("auth snapshot account_id does not match id_token")
+	}
+	return AuthIdentity{
+		AccountKey:       userID + "::" + accountID,
+		ChatGPTAccountID: accountID,
+		ChatGPTUserID:    userID,
+		Email:            email,
+	}, nil
+}
+
+func jsonString(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var value string
+	if json.Unmarshal(raw, &value) != nil {
+		return ""
+	}
+	return strings.TrimSpace(value)
+}
 
 func AuthFreshness(snapshot []byte) int64 {
 	if len(snapshot) == 0 {
