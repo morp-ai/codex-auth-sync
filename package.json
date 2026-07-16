@@ -1,0 +1,36 @@
+{
+  "name": "@morp-ai/codex-auth-sync",
+  "version": "0.1.5",
+  "description": "Securely synchronize codex-auth accounts across machines.",
+  "type": "module",
+  "bin": {
+    "codex-auth-sync": "./npm/cli.js"
+  },
+  "files": [
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md",
+    "npm"
+  ],
+  "scripts": {
+    "postinstall": "node npm/install.js",
+    "test": "node --test npm/*.test.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "https-proxy-agent": "^7.0.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morp-ai/codex-auth-sync.git"
+  },
+  "keywords": [
+    "codex",
+    "codex-auth",
+    "webdav",
+    "sync"
+  ],
+  "license": "MIT"
+}

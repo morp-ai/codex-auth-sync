@@ -1,5 +1,7 @@
 /bin/
 /dist/
+/npm/native/
+/node_modules/
 /deploy/cloudflare-worker/node_modules/
 /deploy/cloudflare-worker/.wrangler/
 /deploy/cloudflare-worker/wrangler.toml
