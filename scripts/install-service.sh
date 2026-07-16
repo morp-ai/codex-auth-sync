@@ -18,6 +18,12 @@ fi
 
 case "$OS_NAME" in
   Linux)
+    if ! command -v systemctl >/dev/null 2>&1; then
+      echo "No systemd user service manager was found; background service installation was skipped." >&2
+      echo "In a container, run 'codex-auth-sync daemon --config $CONFIG' under the container entrypoint or a process supervisor." >&2
+      echo "For manual synchronization, run 'codex-auth-sync now --config $CONFIG'." >&2
+      exit 0
+    fi
     UNIT_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
     UNIT="$UNIT_DIR/codex-auth-sync.service"
     mkdir -p "$UNIT_DIR"
@@ -37,7 +43,12 @@ NoNewPrivileges=true
 [Install]
 WantedBy=default.target
 EOF
-    systemctl --user daemon-reload
+    if ! systemctl --user daemon-reload >/dev/null 2>&1; then
+      echo "The systemd user manager is unavailable; background service installation was skipped." >&2
+      echo "In a container, run 'codex-auth-sync daemon --config $CONFIG' under the container entrypoint or a process supervisor." >&2
+      echo "For manual synchronization, run 'codex-auth-sync now --config $CONFIG'." >&2
+      exit 0
+    fi
     systemctl --user enable --now codex-auth-sync.service
     echo "Installed and started the systemd user service."
     ;;

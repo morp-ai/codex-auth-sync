@@ -13,6 +13,7 @@ SCAN_INTERVAL=${CODEX_AUTH_SYNC_SCAN_INTERVAL:-5}
 ROLE=${CODEX_AUTH_SYNC_ROLE:-auto}
 REPLACEMENT_CLUSTER=${CODEX_AUTH_SYNC_REPLACEMENT_CLUSTER:-}
 INSTALL_CODEX=1
+INSTALL_SERVICE=1
 
 usage() {
   cat <<'EOF'
@@ -24,6 +25,7 @@ Usage:
 Options:
   --server URL          WebDAV base URL
   --username USER       WebDAV username
+  --password PASSWORD   WebDAV password or app password (visible in shell history)
   --sync-key KEY        Shared base64 synchronization key
   --cluster ID          Shared cluster ID (default: personal)
   --active-scope SCOPE  local, group, or global (default: group)
@@ -33,6 +35,7 @@ Options:
   --replacement-cluster ID
                         New empty cluster used by local-authoritative mode
   --skip-codex-install  Do not install Node.js, Codex CLI, or codex-auth
+  --no-service          Do not install a background service (useful in containers)
   --help                Show this help
 
 Secrets can be supplied through CODEX_AUTH_SYNC_WEBDAV_PASSWORD and
@@ -44,6 +47,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --server) SERVER_URL=$2; shift 2 ;;
     --username) WEBDAV_USERNAME=$2; shift 2 ;;
+    --password) WEBDAV_PASSWORD=$2; shift 2 ;;
     --sync-key) SYNC_KEY=$2; shift 2 ;;
     --cluster) CLUSTER_ID=$2; shift 2 ;;
     --active-scope) ACTIVE_SCOPE=$2; shift 2 ;;
@@ -52,6 +56,7 @@ while [ "$#" -gt 0 ]; do
     --role) ROLE=$2; shift 2 ;;
     --replacement-cluster) REPLACEMENT_CLUSTER=$2; shift 2 ;;
     --skip-codex-install) INSTALL_CODEX=0; shift ;;
+    --no-service) INSTALL_SERVICE=0; shift ;;
     --help|-h) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -444,8 +449,13 @@ unset CODEX_AUTH_SYNC_WEBDAV_PASSWORD CODEX_AUTH_SYNC_KEY
 "$SYNC_BINARY" sync
 "$SYNC_BINARY" status
 
-curl -fsSL "https://raw.githubusercontent.com/$REPOSITORY/main/scripts/install-service.sh" -o "$temp_dir/install-service.sh"
-sh "$temp_dir/install-service.sh" "$SYNC_BINARY" "$CONFIG_PATH"
+if [ "$INSTALL_SERVICE" -eq 1 ]; then
+  curl -fsSL "https://raw.githubusercontent.com/$REPOSITORY/main/scripts/install-service.sh" -o "$temp_dir/install-service.sh"
+  sh "$temp_dir/install-service.sh" "$SYNC_BINARY" "$CONFIG_PATH"
+else
+  echo "Background service installation skipped."
+  echo "Run 'codex-auth-sync now' whenever an immediate synchronization is needed."
+fi
 
 if [ "$(uname -s)" = "Linux" ] && command -v loginctl >/dev/null 2>&1; then
   current_user=$(id -un)
@@ -468,4 +478,5 @@ echo "Bootstrap complete."
 echo "Role: $ROLE"
 echo "Cluster: $CLUSTER_ID"
 echo "Run 'codex-auth list' to view synchronized accounts."
+echo "Run 'codex-auth-sync now' to synchronize immediately."
 echo "Run 'codex-auth-sync status' to verify synchronization health."
