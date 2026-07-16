@@ -49,7 +49,11 @@ EOF
       echo "For manual synchronization, run 'codex-auth-sync now --config $CONFIG'." >&2
       exit 0
     fi
-    systemctl --user enable --now codex-auth-sync.service
+    if systemctl --user is-active --quiet codex-auth-sync.service; then
+      systemctl --user restart codex-auth-sync.service
+    else
+      systemctl --user enable --now codex-auth-sync.service
+    fi
     echo "Installed and started the systemd user service."
     ;;
   Darwin)

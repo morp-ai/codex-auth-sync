@@ -14,13 +14,17 @@ ROLE=${CODEX_AUTH_SYNC_ROLE:-auto}
 REPLACEMENT_CLUSTER=${CODEX_AUTH_SYNC_REPLACEMENT_CLUSTER:-}
 INSTALL_CODEX=1
 INSTALL_SERVICE=1
+RECONFIGURE=0
 
 usage() {
   cat <<'EOF'
-Install Codex CLI, codex-auth, and codex-auth-sync, then configure WebDAV synchronization.
+Install or update codex-auth-sync and configure WebDAV synchronization.
 
 Usage:
   bootstrap-webdav.sh [options]
+
+An existing installation is updated without changing its configuration.
+If no configuration exists, setup starts.
 
 Options:
   --server URL          WebDAV base URL
@@ -36,6 +40,7 @@ Options:
                         New empty cluster used by local-authoritative mode
   --skip-codex-install  Do not install Node.js, Codex CLI, or codex-auth
   --no-service          Do not install a background service (useful in containers)
+  --reconfigure         Apply configuration options even when a config already exists
   --help                Show this help
 
 Secrets can be supplied through CODEX_AUTH_SYNC_WEBDAV_PASSWORD and
@@ -57,6 +62,7 @@ while [ "$#" -gt 0 ]; do
     --replacement-cluster) REPLACEMENT_CLUSTER=$2; shift 2 ;;
     --skip-codex-install) INSTALL_CODEX=0; shift ;;
     --no-service) INSTALL_SERVICE=0; shift ;;
+    --reconfigure) RECONFIGURE=1; shift ;;
     --help|-h) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -113,17 +119,6 @@ prompt_secret() {
   printf '\n' > "$TTY_DEVICE"
   printf '%s' "$answer"
 }
-
-if [ -z "$WEBDAV_USERNAME" ]; then
-  WEBDAV_USERNAME=$(prompt_value "WebDAV username")
-fi
-if [ -z "$WEBDAV_PASSWORD" ]; then
-  WEBDAV_PASSWORD=$(prompt_secret "WebDAV app password")
-fi
-if [ -z "$WEBDAV_USERNAME" ] || [ -z "$WEBDAV_PASSWORD" ]; then
-  echo "WebDAV username and app password are required." >&2
-  exit 2
-fi
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "curl is required." >&2
@@ -230,15 +225,17 @@ CONFIG_PATH="$CONFIG_DIR/config.json"
 STATE_PATH="$CONFIG_DIR/state.json"
 CODEX_HOME_PATH=${CODEX_HOME:-"$HOME/.codex"}
 BACKUP_ROOT="$HOME/.codex-auth-sync/backups"
-INSTALL_DIR=${CODEX_AUTH_SYNC_INSTALL_DIR:-"$HOME/.local/bin"}
+if [ -n "${CODEX_AUTH_SYNC_INSTALL_DIR:-}" ]; then
+  INSTALL_DIR=$CODEX_AUTH_SYNC_INSTALL_DIR
+elif [ "$(id -u)" -eq 0 ]; then
+  INSTALL_DIR=/usr/local/bin
+else
+  INSTALL_DIR="$HOME/.local/bin"
+fi
 SYNC_BINARY="$INSTALL_DIR/codex-auth-sync"
 
-PATH="$HOME/.local/bin:$PATH"
+PATH="$INSTALL_DIR:$HOME/.local/bin:$PATH"
 export PATH
-
-if [ "$INSTALL_CODEX" -eq 1 ]; then
-  install_codex_tools
-fi
 
 temp_dir=$(mktemp -d)
 trap 'rm -rf "$temp_dir"' EXIT HUP INT TERM
@@ -250,6 +247,31 @@ fi
 if [ -z "$SYNC_BINARY" ] || [ ! -x "$SYNC_BINARY" ]; then
   echo "codex-auth-sync installation failed." >&2
   exit 1
+fi
+
+if [ "$RECONFIGURE" -eq 0 ] && [ -f "$CONFIG_PATH" ]; then
+  curl -fsSL "https://raw.githubusercontent.com/$REPOSITORY/main/scripts/install-service.sh" -o "$temp_dir/install-service.sh"
+  sh "$temp_dir/install-service.sh" "$SYNC_BINARY" "$CONFIG_PATH"
+  "$SYNC_BINARY" version
+  echo "Update complete. Existing configuration, synchronization state, codex-auth, and account data were preserved."
+  echo "Run this script with '--reconfigure' only when configuration changes are intended."
+  echo "Run 'codex-auth-sync now' to synchronize immediately."
+  exit 0
+fi
+
+if [ -z "$WEBDAV_USERNAME" ]; then
+  WEBDAV_USERNAME=$(prompt_value "WebDAV username")
+fi
+if [ -z "$WEBDAV_PASSWORD" ]; then
+  WEBDAV_PASSWORD=$(prompt_secret "WebDAV app password")
+fi
+if [ -z "$WEBDAV_USERNAME" ] || [ -z "$WEBDAV_PASSWORD" ]; then
+  echo "WebDAV username and app password are required." >&2
+  exit 2
+fi
+
+if [ "$INSTALL_CODEX" -eq 1 ]; then
+  install_codex_tools
 fi
 
 hash_cluster() {

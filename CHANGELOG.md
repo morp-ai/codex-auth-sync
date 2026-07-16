@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.7
+
+- Install root-owned native clients in `/usr/local/bin` so `codex-auth-sync now` works without a path prefix.
+- Add safe update-only behavior to the WebDAV bootstrap when an existing configuration is detected.
+- Preserve WebDAV credentials, sync keys, clusters, state, accounts, and installed `codex-auth` versions during repeat bootstrap runs.
+- Require explicit `--reconfigure` or `-Reconfigure` before an existing configuration can be replaced.
+- Remove the optional npm distribution layer in favor of the simpler native installation path.
+
 ## v0.1.3
 
 - Preserve installed `codex-auth` versions and use the official stable npm package only when it is missing.

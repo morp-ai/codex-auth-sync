@@ -50,6 +50,9 @@ try {
     [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
     Write-Output "Added $InstallDirectory to the user PATH. Open a new terminal to use it."
   }
+  if (($env:Path -split ";") -notcontains $InstallDirectory) {
+    $env:Path = "$InstallDirectory;$env:Path"
+  }
   Write-Output "Installed codex-auth-sync to $destination"
 } finally {
   Remove-Item -Recurse -Force $temporaryDirectory -ErrorAction SilentlyContinue

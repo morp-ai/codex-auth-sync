@@ -26,6 +26,9 @@ case "${1:-}" in
   status)
     printf '%s\n' 'Server: mock (online)'
     ;;
+  version)
+    printf '%s\n' 'codex-auth-sync test-version'
+    ;;
   *)
     printf 'Unexpected fake command: %s\n' "${1:-}" >&2
     exit 1
@@ -106,6 +109,7 @@ run_bootstrap() {
   CODEX_AUTH_SYNC_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
   CODEX_AUTH_SYNC_INSTALL_DIR="$home/.local/bin" \
   sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
+    --reconfigure \
     --skip-codex-install \
     --server https://webdav.example.test/root \
     --username test@example.com \
@@ -234,5 +238,41 @@ sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
   --role seed
 test -f "$manual_home/.config/codex-auth-sync/config.json"
 test ! -e "$manual_home/service-installed"
+
+update_home="$TEST_ROOT/update-home"
+mkdir -p "$update_home/.config/codex-auth-sync" "$update_home/.codex/accounts"
+printf '%s\n' '{"preserve":"configuration"}' > "$update_home/.config/codex-auth-sync/config.json"
+printf '%s\n' '{"preserve":"state"}' > "$update_home/.config/codex-auth-sync/state.json"
+printf '%s\n' '{"tokens":{"access_token":"preserve"}}' > "$update_home/.codex/accounts/local.auth.json"
+HOME="$update_home" \
+XDG_CONFIG_HOME="$update_home/.config" \
+PATH="$TEST_ROOT/bin:/usr/bin:/bin" \
+TEST_FIXTURE="$TEST_ROOT/fixtures" \
+TEST_REMOTE_STATUS=unused \
+CODEX_AUTH_SYNC_INSTALL_DIR="$update_home/.local/bin" \
+sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh"
+grep -F '"preserve":"configuration"' "$update_home/.config/codex-auth-sync/config.json" >/dev/null
+grep -F '"preserve":"state"' "$update_home/.config/codex-auth-sync/state.json" >/dev/null
+test -f "$update_home/.codex/accounts/local.auth.json"
+test -x "$update_home/.local/bin/codex-auth-sync"
+test -f "$update_home/service-installed"
+test ! -e "$update_home/npm-invocation"
+
+HOME="$update_home" \
+XDG_CONFIG_HOME="$update_home/.config" \
+PATH="$TEST_ROOT/bin:/usr/bin:/bin" \
+TEST_FIXTURE="$TEST_ROOT/fixtures" \
+TEST_REMOTE_STATUS=unused \
+CODEX_AUTH_SYNC_INSTALL_DIR="$update_home/.local/bin" \
+sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
+  --server https://changed.example.test/root \
+  --username changed@example.com \
+  --password changed-password \
+  --sync-key BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB \
+  --cluster changed-cluster \
+  --role join
+grep -F '"preserve":"configuration"' "$update_home/.config/codex-auth-sync/config.json" >/dev/null
+grep -F '"preserve":"state"' "$update_home/.config/codex-auth-sync/state.json" >/dev/null
+test -f "$update_home/.codex/accounts/local.auth.json"
 
 echo "WebDAV bootstrap role and codex-auth compatibility tests passed."

@@ -14,7 +14,8 @@ param(
   [string]$ReplacementCluster = $env:CODEX_AUTH_SYNC_REPLACEMENT_CLUSTER,
   [string]$Repository = "morp-ai/codex-auth-sync",
   [switch]$SkipCodexInstall,
-  [switch]$NoService
+  [switch]$NoService,
+  [switch]$Reconfigure
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +28,24 @@ function Read-PlainSecret([string]$Prompt) {
   } finally {
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
   }
+}
+
+$ExistingConfigPath = Join-Path $env:APPDATA "codex-auth-sync\config.json"
+if (-not $Reconfigure -and (Test-Path $ExistingConfigPath)) {
+  $installScript = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/$Repository/main/scripts/install.ps1"
+  & ([scriptblock]::Create($installScript)) -Repository $Repository
+  $installDirectory = Join-Path $env:LOCALAPPDATA "Programs\codex-auth-sync"
+  $syncBinary = Join-Path $installDirectory "codex-auth-sync.exe"
+  if (-not (Test-Path $syncBinary)) {
+    throw "codex-auth-sync installation failed."
+  }
+  $serviceScript = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/$Repository/main/scripts/install-service.ps1"
+  & ([scriptblock]::Create($serviceScript)) -BinaryPath $syncBinary -ConfigPath $ExistingConfigPath
+  & $syncBinary version
+  Write-Output "Update complete. Existing configuration, synchronization state, codex-auth, and account data were preserved."
+  Write-Output "Run this script with '-Reconfigure' only when configuration changes are intended."
+  Write-Output "Run 'codex-auth-sync now' to synchronize immediately."
+  return
 }
 
 if ([string]::IsNullOrWhiteSpace($Username)) {
