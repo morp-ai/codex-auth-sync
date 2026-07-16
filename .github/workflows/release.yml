@@ -34,6 +34,7 @@ jobs:
           sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh scripts/bootstrap-webdav.sh scripts/update.sh scripts/uninstall.sh
           sh tests/bootstrap-webdav.sh
           sh tests/lifecycle.sh
+          sh tests/npm-git-install.sh
       - name: Build release artifacts
         env:
           VERSION: ${{ github.ref_name }}

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import { chmod, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { get } from "node:https";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { HttpsProxyAgent } from "https-proxy-agent";
+import { promisify } from "node:util";
 
 import { expectedChecksum, releaseAsset } from "./release.js";
 
@@ -21,7 +22,24 @@ const nativeDirectory = path.join(npmDirectory, "native");
 const destination = path.join(nativeDirectory, asset);
 const temporary = `${destination}.${process.pid}.tmp`;
 const proxyURL = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy;
-const proxyAgent = proxyURL ? new HttpsProxyAgent(proxyURL) : undefined;
+const execFileAsync = promisify(execFile);
+
+async function downloadWithCurl(url) {
+  try {
+    const { stdout } = await execFileAsync(process.platform === "win32" ? "curl.exe" : "curl", [
+      "--fail",
+      "--silent",
+      "--show-error",
+      "--location",
+      "--max-time",
+      "120",
+      url
+    ], { encoding: null, maxBuffer: 32 * 1024 * 1024 });
+    return stdout;
+  } catch (error) {
+    throw new Error(`curl download failed for ${url}: ${error.message}`);
+  }
+}
 
 function download(url, redirects = 0) {
   if (redirects > 5) {
@@ -29,7 +47,6 @@ function download(url, redirects = 0) {
   }
   return new Promise((resolve, reject) => {
     const request = get(url, {
-      agent: proxyAgent,
       headers: { "User-Agent": `@morp-ai/codex-auth-sync/${packageJSON.version}` }
     }, (response) => {
       const location = response.headers.location;
@@ -53,11 +70,18 @@ function download(url, redirects = 0) {
   });
 }
 
+function downloadReleaseFile(url) {
+  if (proxyURL) {
+    return downloadWithCurl(url);
+  }
+  return download(url).catch(() => downloadWithCurl(url));
+}
+
 try {
   console.log(`Downloading ${asset} from codex-auth-sync ${version}`);
   const [checksumData, binary] = await Promise.all([
-    download(`${baseURL}/checksums.txt`),
-    download(`${baseURL}/${asset}`)
+    downloadReleaseFile(`${baseURL}/checksums.txt`),
+    downloadReleaseFile(`${baseURL}/${asset}`)
   ]);
   const expected = expectedChecksum(checksumData.toString("utf8"), asset);
   const actual = createHash("sha256").update(binary).digest("hex");

@@ -40,7 +40,7 @@ It synchronizes encrypted account snapshots, aliases, selected registry settings
 
 ## Fastest Quick Start: WebDAV
 
-If Node.js and npm are already available, install directly from GitHub. npm creates the global `codex-auth-sync` command and downloads and verifies the matching native release binary:
+If Node.js and npm are already available, install directly from GitHub. npm creates the global `codex-auth-sync` command; its first invocation downloads and verifies the matching native release binary:
 
 ```sh
 npm install -g git+https://github.com/morp-ai/codex-auth-sync.git

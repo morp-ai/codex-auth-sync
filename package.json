@@ -1,6 +1,6 @@
 {
   "name": "@morp-ai/codex-auth-sync",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Securely synchronize codex-auth accounts across machines.",
   "type": "module",
   "bin": {
@@ -13,14 +13,10 @@
     "npm"
   ],
   "scripts": {
-    "postinstall": "node npm/install.js",
     "test": "node --test npm/*.test.js"
   },
   "engines": {
     "node": ">=16.0.0"
-  },
-  "dependencies": {
-    "https-proxy-agent": "^7.0.6"
   },
   "repository": {
     "type": "git",
