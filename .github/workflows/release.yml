@@ -26,6 +26,11 @@ jobs:
           go test -race ./...
           go vet ./...
           node --check deploy/cloudflare-worker/src/index.js
+          npm ci --ignore-scripts
+          npm test
+          npm pack --ignore-scripts --dry-run
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          test "$GITHUB_REF_NAME" = "v$PACKAGE_VERSION"
           sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh scripts/bootstrap-webdav.sh scripts/update.sh scripts/uninstall.sh
           sh tests/bootstrap-webdav.sh
           sh tests/lifecycle.sh
@@ -42,3 +47,9 @@ jobs:
             --verify-tag \
             --generate-notes \
             --title "codex-auth-sync $GITHUB_REF_NAME"
+      - name: Verify npm installer against the release
+        env:
+          CODEX_AUTH_SYNC_VERSION: ${{ github.ref_name }}
+        run: |
+          node npm/install.js
+          node npm/cli.js version

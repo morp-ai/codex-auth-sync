@@ -13,6 +13,20 @@
 
 ## 最快开始：WebDAV
 
+如果服务器已有 Node.js 和 npm，可以直接从 GitHub 以 npm 方式安装。npm 会生成全局短命令，并自动下载、校验当前平台对应的原生 Release 二进制：
+
+```sh
+npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
+codex-auth-sync version
+codex-auth-sync now
+```
+
+npm 包只充当跨平台安装器和启动器；同步仍由同一个无 CGO Go 二进制完成。它不会把 `codex-auth` 声明为依赖，也不会安装、升级或降级 `codex-auth`。
+
+无 scope 的 npm 包名 `codex-auth-sync` 已属于其他维护者，本项目使用 `@morp-ai/codex-auth-sync` 作为包身份。当前从 GitHub 安装不要求 npm Registry 登录。
+
+也可以继续使用原生安装方式。
+
 Linux/macOS 安装：
 
 ```sh

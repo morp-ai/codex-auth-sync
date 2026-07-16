@@ -32,6 +32,15 @@
 
 ## Linux 和 macOS 一键命令
 
+如果机器上已经能使用 npm（例如已经通过 npm 安装了 `codex-auth`），可以先安装全局短命令：
+
+```sh
+npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
+codex-auth-sync version
+```
+
+以后直接执行 `codex-auth-sync now`，不需要输入 `/root/.local/bin/`。重复同一条 `npm install -g` 命令即可更新；运行 `npm uninstall -g @morp-ai/codex-auth-sync` 可卸载 npm 管理的启动器和二进制，但会保留同步配置和账户数据。
+
 在每台服务器执行同一条命令：
 
 ```sh

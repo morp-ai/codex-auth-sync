@@ -14,6 +14,33 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/install.ps1 | iex
 ```
 
+## npm installation
+
+Machines that already have Node.js 16 or newer can install from GitHub in the same style as other Codex helper CLIs:
+
+```sh
+npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
+codex-auth-sync version
+```
+
+The package identity is `@morp-ai/codex-auth-sync`, but no npm registry login is needed for this GitHub installation. Its post-install step selects Linux, macOS, or Windows and x64 or arm64, downloads the native binary from the matching GitHub Release, verifies it against `checksums.txt`, and exposes `codex-auth-sync` through npm's global command directory.
+
+The npm layer contains no account synchronization implementation and has no dependency on `codex-auth`; it only launches the verified Go binary. Existing configuration in the platform's normal `codex-auth-sync` configuration directory continues to work.
+
+Update a GitHub/npm installation by running the same command again:
+
+```sh
+npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
+```
+
+Uninstall only the npm-managed launcher and binary with:
+
+```sh
+npm uninstall -g @morp-ai/codex-auth-sync
+```
+
+This does not remove synchronization configuration, `~/.codex`, `codex-auth`, or remote WebDAV data.
+
 ## Linux
 
 Choose `codex-auth-sync-linux-amd64` or `codex-auth-sync-linux-arm64`:

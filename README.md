@@ -40,6 +40,20 @@ It synchronizes encrypted account snapshots, aliases, selected registry settings
 
 ## Fastest Quick Start: WebDAV
 
+If Node.js and npm are already available, install directly from GitHub. npm creates the global `codex-auth-sync` command and downloads and verifies the matching native release binary:
+
+```sh
+npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
+codex-auth-sync version
+codex-auth-sync now
+```
+
+The npm package is only a cross-platform installer and launcher. Synchronization remains in the same CGO-free Go binary, and `codex-auth` is not installed, upgraded, downgraded, or declared as a package dependency.
+
+The unscoped npm name `codex-auth-sync` belongs to an unrelated maintainer. This project uses the package identity `@morp-ai/codex-auth-sync`; installation from GitHub works without npm registry publication.
+
+Alternatively, install the native binary directly.
+
 Install the latest checksum-verified binary on Linux or macOS:
 
 ```sh
