@@ -8,38 +8,13 @@ The fastest installation uses the release installer, which verifies `checksums.t
 curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/install.sh | sh
 ```
 
+When run as root, the installer uses `/usr/local/bin/codex-auth-sync`, which is normally already on `PATH`. Non-root installations use `~/.local/bin`; add that directory to the login shell `PATH` if it is not already present.
+
 Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/install.ps1 | iex
 ```
-
-## npm installation
-
-Machines that already have Node.js 16 or newer can install from GitHub in the same style as other Codex helper CLIs:
-
-```sh
-npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
-codex-auth-sync version
-```
-
-The package identity is `@morp-ai/codex-auth-sync`, but no npm registry login is needed for this GitHub installation. npm exposes `codex-auth-sync` through its global command directory. On the first invocation, the launcher selects Linux, macOS, or Windows and x64 or arm64, downloads the native binary from the matching GitHub Release, and verifies it against `checksums.txt`.
-
-The npm layer contains no account synchronization implementation and has no dependency on `codex-auth`; it only launches the verified Go binary. Existing configuration in the platform's normal `codex-auth-sync` configuration directory continues to work.
-
-Update a GitHub/npm installation by running the same command again:
-
-```sh
-npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
-```
-
-Uninstall only the npm-managed launcher and binary with:
-
-```sh
-npm uninstall -g @morp-ai/codex-auth-sync
-```
-
-This does not remove synchronization configuration, `~/.codex`, `codex-auth`, or remote WebDAV data.
 
 ## Linux
 
@@ -88,6 +63,14 @@ The sidecar adapts to the registry schema used by the installed `codex-auth` rel
 ## Update
 
 The updater downloads a release, verifies its published SHA-256 checksum, replaces only the `codex-auth-sync` binary, and restarts a managed service when one is detected. It does not update or modify `codex-auth`.
+
+For an existing WebDAV bootstrap installation, the shortest update command is:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/bootstrap-webdav.sh | sh
+```
+
+When an existing configuration is detected, bootstrap enters update-only mode even if the original installation options are repeated. It does not request or rewrite WebDAV credentials, the synchronization key, cluster, state, or account files. Add `--reconfigure` only when configuration changes are explicitly intended.
 
 Linux and macOS:
 

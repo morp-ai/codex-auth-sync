@@ -30,7 +30,11 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ -z "$BINARY" ]; then
-  BINARY="$HOME/.local/bin/codex-auth-sync"
+  if [ "$(id -u)" -eq 0 ]; then
+    BINARY=/usr/local/bin/codex-auth-sync
+  else
+    BINARY="$HOME/.local/bin/codex-auth-sync"
+  fi
 fi
 
 case "$(uname -s)" in

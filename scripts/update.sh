@@ -6,7 +6,11 @@ VERSION=${CODEX_AUTH_SYNC_VERSION:-latest}
 BINARY=${CODEX_AUTH_SYNC_BINARY:-"$(command -v codex-auth-sync || true)"}
 
 if [ -z "$BINARY" ]; then
-  BINARY="$HOME/.local/bin/codex-auth-sync"
+  if [ "$(id -u)" -eq 0 ]; then
+    BINARY=/usr/local/bin/codex-auth-sync
+  else
+    BINARY="$HOME/.local/bin/codex-auth-sync"
+  fi
 fi
 binary_dir=$(dirname "$BINARY")
 if [ -d "$binary_dir" ]; then

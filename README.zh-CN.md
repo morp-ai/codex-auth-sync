@@ -13,25 +13,13 @@
 
 ## 最快开始：WebDAV
 
-如果服务器已有 Node.js 和 npm，可以直接从 GitHub 以 npm 方式安装。npm 会生成全局短命令；第一次运行时自动下载、校验当前平台对应的原生 Release 二进制：
-
-```sh
-npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
-codex-auth-sync version
-codex-auth-sync now
-```
-
-npm 包只充当跨平台安装器和启动器；同步仍由同一个无 CGO Go 二进制完成。它不会把 `codex-auth` 声明为依赖，也不会安装、升级或降级 `codex-auth`。
-
-无 scope 的 npm 包名 `codex-auth-sync` 已属于其他维护者，本项目使用 `@morp-ai/codex-auth-sync` 作为包身份。当前从 GitHub 安装不要求 npm Registry 登录。
-
-也可以继续使用原生安装方式。
-
 Linux/macOS 安装：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/install.sh | sh
 ```
+
+root 用户会直接安装到 `/usr/local/bin`，因此安装后可以执行 `codex-auth-sync now`，不需要 `/root/.local/bin/` 路径前缀。非 root 用户默认安装到 `~/.local/bin`。
 
 Windows PowerShell：
 
@@ -78,6 +66,12 @@ Koofr 已经过真实服务测试。WebDAV 服务必须支持强 ETag、`If-Matc
 需要从零安装 Codex CLI、`codex-auth`、同步工具和后台服务，或需要区分首台种子服务器、云端覆盖和账号合并时，请使用[WebDAV 多服务器一键部署教程](docs/webdav-multi-server.zh-CN.md)。
 
 `codex-auth-sync now` 会立即完成一次同步。在没有 systemd 的 Docker 容器里，可以选择手动执行 `now`，也可以把 `codex-auth-sync daemon` 放入容器入口或进程管理器。更新和卸载方法见[安装与维护文档](docs/install.md)。
+
+已经配置完成的 Linux/macOS 节点可以不带任何参数重复运行一键脚本。它只更新同步外挂并保留 WebDAV 密码、同步密钥、cluster、同步状态、账户数据和 `codex-auth` 版本：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/bootstrap-webdav.sh | sh
+```
 
 ## 同步内容
 

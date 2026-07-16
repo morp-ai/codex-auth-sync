@@ -32,15 +32,6 @@
 
 ## Linux 和 macOS 一键命令
 
-如果机器上已经能使用 npm（例如已经通过 npm 安装了 `codex-auth`），可以先安装全局短命令：
-
-```sh
-npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
-codex-auth-sync version
-```
-
-以后直接执行 `codex-auth-sync now`，不需要输入 `/root/.local/bin/`。重复同一条 `npm install -g` 命令即可更新；运行 `npm uninstall -g @morp-ai/codex-auth-sync` 可卸载 npm 管理的启动器和二进制，但会保留同步配置和账户数据。
-
 在每台服务器执行同一条命令：
 
 ```sh
@@ -53,6 +44,15 @@ curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/script
       --active-group main \
       --interval 5
 ```
+
+root 用户会把同步工具安装到 `/usr/local/bin/codex-auth-sync`。一键命令完成后可直接运行：
+
+```sh
+codex-auth-sync now
+codex-auth-sync status
+```
+
+不再需要 `/root/.local/bin/codex-auth-sync` 路径前缀。
 
 需要把两个秘密显式写入命令时，可以使用以下形式（请替换为新生成的值，不要使用已经公开过的密码或密钥）：
 
@@ -250,8 +250,18 @@ codex-auth-sync status
 更新只替换 `codex-auth-sync`，不会升级、降级或修改 `codex-auth`：
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/update.sh | sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/bootstrap-webdav.sh | sh
 ```
+
+检测到本地已有配置时，一键脚本自动进入“仅更新”模式：下载并校验最新版本、修复全局短命令、重启已存在的后台服务，但不询问或改写 WebDAV 密码、同步密钥、cluster、同步状态和账户数据。即使重复粘贴第一次带完整参数的一键命令，也仍然只更新。只有明确追加 `--reconfigure` 时才会重新配置。
+
+注意，下面的命令只会把脚本内容输出到终端，并不会执行：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/bootstrap-webdav.sh
+```
+
+必须保留末尾的 `| sh` 才会执行更新。
 
 Windows PowerShell：
 

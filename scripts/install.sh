@@ -3,7 +3,13 @@ set -eu
 
 REPOSITORY=${CODEX_AUTH_SYNC_REPOSITORY:-morp-ai/codex-auth-sync}
 VERSION=${CODEX_AUTH_SYNC_VERSION:-latest}
-INSTALL_DIR=${CODEX_AUTH_SYNC_INSTALL_DIR:-"$HOME/.local/bin"}
+if [ -n "${CODEX_AUTH_SYNC_INSTALL_DIR:-}" ]; then
+  INSTALL_DIR=$CODEX_AUTH_SYNC_INSTALL_DIR
+elif [ "$(id -u)" -eq 0 ]; then
+  INSTALL_DIR=/usr/local/bin
+else
+  INSTALL_DIR="$HOME/.local/bin"
+fi
 
 case "$(uname -s)" in
   Linux) os=linux ;;
