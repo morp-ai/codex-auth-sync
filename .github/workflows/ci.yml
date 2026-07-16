@@ -18,8 +18,9 @@ jobs:
       - run: go test ./...
       - run: go vet ./...
       - run: node --check deploy/cloudflare-worker/src/index.js
-      - run: sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh scripts/bootstrap-webdav.sh
+      - run: sh -n scripts/build-all.sh scripts/install.sh scripts/install-service.sh scripts/bootstrap-webdav.sh scripts/update.sh scripts/uninstall.sh
       - run: sh tests/bootstrap-webdav.sh
+      - run: sh tests/lifecycle.sh
       - run: VERSION=ci ./scripts/build-all.sh
 
   powershell:
@@ -33,7 +34,9 @@ jobs:
           foreach ($path in @(
             "scripts/install.ps1",
             "scripts/install-service.ps1",
-            "scripts/bootstrap-webdav.ps1"
+            "scripts/bootstrap-webdav.ps1",
+            "scripts/update.ps1",
+            "scripts/uninstall.ps1"
           )) {
             $tokens = $null
             $errors = $null

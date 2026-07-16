@@ -46,7 +46,7 @@ codex-auth-sync init \
   --active-group main
 
 unset CODEX_AUTH_SYNC_WEBDAV_PASSWORD
-codex-auth-sync sync
+codex-auth-sync now
 codex-auth-sync status
 ```
 
@@ -62,6 +62,8 @@ curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/script
 Koofr 已经过真实服务测试。WebDAV 服务必须支持强 ETag、`If-Match` 和条件 PUT；不满足安全并发要求时，客户端会拒绝启用。
 
 需要从零安装 Codex CLI、`codex-auth`、同步工具和后台服务，或需要区分首台种子服务器、云端覆盖和账号合并时，请使用[WebDAV 多服务器一键部署教程](docs/webdav-multi-server.zh-CN.md)。
+
+`codex-auth-sync now` 会立即完成一次同步。在没有 systemd 的 Docker 容器里，可以选择手动执行 `now`，也可以把 `codex-auth-sync daemon` 放入容器入口或进程管理器。更新和卸载方法见[安装与维护文档](docs/install.md)。
 
 ## 同步内容
 

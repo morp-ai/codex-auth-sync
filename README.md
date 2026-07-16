@@ -191,10 +191,13 @@ See [docs/security.md](docs/security.md) and [docs/architecture.md](docs/archite
 codex-auth-sync keygen
 codex-auth-sync init [options]
 codex-auth-sync sync [--config path]
+codex-auth-sync now [--config path]
 codex-auth-sync daemon [--config path]
 codex-auth-sync status [--config path]
 codex-auth-sync serve [options]
 ```
+
+`now` is an alias for one immediate `sync` cycle. Update and uninstall instructions, including container behavior, are in [docs/install.md](docs/install.md).
 
 All CLI output, prompts, warnings, and errors are in English.
 

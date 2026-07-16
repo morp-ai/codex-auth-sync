@@ -46,7 +46,7 @@ func run(args []string) error {
 		return runKeygen(args[1:])
 	case "init":
 		return runInit(args[1:])
-	case "sync":
+	case "sync", "now":
 		return runSync(args[1:])
 	case "daemon":
 		return runDaemon(args[1:])
@@ -342,6 +342,7 @@ Commands:
   keygen   Generate an API token and an end-to-end encryption key
   init     Create a node configuration
   sync     Perform one pull-and-push synchronization cycle
+  now      Perform one synchronization cycle immediately (alias for sync)
   daemon   Continuously synchronize in the background
   status   Show local and remote synchronization status
   serve    Run the lightweight self-hosted synchronization server

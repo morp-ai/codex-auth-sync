@@ -28,6 +28,8 @@
 
 应用密码和同步密钥不要写进 shell 历史、聊天记录、Git 仓库或公开脚本。一键脚本默认使用隐藏输入，并将最终配置保存为仅当前用户可读的配置文件。
 
+如果必须用于无人值守部署，脚本也接受 `--password` 和 `--sync-key`。这两个参数会出现在 shell 历史、进程参数和部分审计日志中，安全性低于隐藏输入或受保护的环境变量；只应在隔离的部署系统中使用。
+
 ## Linux 和 macOS 一键命令
 
 在每台服务器执行同一条命令：
@@ -37,6 +39,21 @@ curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/script
   | sh -s -- \
       --server 'https://app.koofr.net/dav/Koofr' \
       --username 'you@example.com' \
+      --cluster 'personal-v1' \
+      --active-scope group \
+      --active-group main \
+      --interval 5
+```
+
+需要把两个秘密显式写入命令时，可以使用以下形式（请替换为新生成的值，不要使用已经公开过的密码或密钥）：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/bootstrap-webdav.sh \
+  | sh -s -- \
+      --server 'https://app.koofr.net/dav/Koofr' \
+      --username 'you@example.com' \
+      --password '<new WebDAV app password>' \
+      --sync-key '<shared synchronization key>' \
       --cluster 'personal-v1' \
       --active-scope group \
       --active-group main \
@@ -172,6 +189,30 @@ codex-auth remove
 
 同步守护进程会在几秒内发现这些修改并传播。已经运行的 Codex CLI、App 或扩展可能缓存认证状态；切换同步完成后，应新开 Codex 进程，必要时重启客户端。
 
+也可以随时手动立即同步：
+
+```sh
+codex-auth-sync now
+```
+
+`now` 与原有的 `sync` 完全等价。手动传播一次切换时，先在发生切换的服务器 A 执行 `codex-auth-sync now`，使本地变化上传；再在服务器 B 执行 `codex-auth-sync now`，拉取 A 的变化。只在 B 执行无法取得尚未上传的 A 本地变化。
+
+### Docker 或没有 systemd 的 Linux
+
+Docker 容器通常没有 `systemctl`。首次同步仍然有效；脚本会明确跳过后台服务，而不是把整个部署显示为失败。若只需要手动同步，可在一键命令末尾增加：
+
+```text
+--no-service
+```
+
+然后在需要时运行 `codex-auth-sync now`。若需要持续自动同步，应把下面的进程交给容器的 entrypoint、Docker Compose、Kubernetes 或容器内的进程管理器管理：
+
+```sh
+codex-auth-sync daemon --config /root/.config/codex-auth-sync/config.json
+```
+
+必须把 `/root/.codex` 和 `/root/.config/codex-auth-sync` 挂载为持久卷，否则重建容器会丢失本地账户文件、节点配置和同步进度。同一个 `/root/.codex` 只能运行一个同步 daemon。
+
 检查 Linux 服务：
 
 ```sh
@@ -194,6 +235,40 @@ codex-auth-sync status
 Get-ScheduledTask -TaskName CodexAuthSync
 codex-auth-sync status
 ```
+
+## 更新同步外挂
+
+更新只替换 `codex-auth-sync`，不会升级、降级或修改 `codex-auth`：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/update.sh | sh
+```
+
+Windows PowerShell：
+
+```powershell
+$script = irm https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/update.ps1
+& ([scriptblock]::Create($script))
+```
+
+在 systemd、launchd 或 Windows 计划任务节点上，更新脚本会停止并重新启动已检测到的后台服务。在 Docker/手动模式下，更新后需要重启由 entrypoint 或 supervisor 管理的 daemon；下一次执行 `codex-auth-sync now` 会直接使用新版本。
+
+## 卸载
+
+默认卸载只删除同步外挂和其后台服务，保留本地同步配置、备份、`~/.codex` 账户数据与 WebDAV 远端密文：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/uninstall.sh | sh
+```
+
+连同本地同步配置、状态、日志和备份一起删除：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/morp-ai/codex-auth-sync/main/scripts/uninstall.sh \
+  | sh -s -- --purge
+```
+
+Windows PowerShell 使用 `uninstall.ps1`，并可追加 `-Purge`。任何卸载模式都不会删除 `codex-auth`、`~/.codex` 或 WebDAV 远端集群；远端密文需要在确认所有节点退役后从 WebDAV 管理界面手动删除。
 
 ## 修改或轮换 WebDAV 应用密码
 

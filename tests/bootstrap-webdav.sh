@@ -214,4 +214,25 @@ sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
   --role seed
 grep -F '@openai/codex @loongphy/codex-auth' "$missing_home/npm-invocation" >/dev/null
 
+manual_home="$TEST_ROOT/manual-home"
+mkdir -p "$manual_home/.codex/accounts"
+printf '%s\n' '{"tokens":{"access_token":"manual"}}' > "$manual_home/.codex/accounts/local.auth.json"
+HOME="$manual_home" \
+XDG_CONFIG_HOME="$manual_home/.config" \
+PATH="$TEST_ROOT/bin:/usr/bin:/bin" \
+TEST_FIXTURE="$TEST_ROOT/fixtures" \
+TEST_REMOTE_STATUS=404 \
+CODEX_AUTH_SYNC_INSTALL_DIR="$manual_home/.local/bin" \
+sh "$REPOSITORY_ROOT/scripts/bootstrap-webdav.sh" \
+  --skip-codex-install \
+  --no-service \
+  --server https://webdav.example.test/root \
+  --username test@example.com \
+  --password test-password \
+  --sync-key AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA \
+  --cluster manual-cluster \
+  --role seed
+test -f "$manual_home/.config/codex-auth-sync/config.json"
+test ! -e "$manual_home/service-installed"
+
 echo "WebDAV bootstrap role and codex-auth compatibility tests passed."

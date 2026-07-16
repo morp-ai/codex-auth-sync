@@ -1,6 +1,7 @@
 param(
   [string]$Server = $(if ($env:CODEX_AUTH_SYNC_SERVER_URL) { $env:CODEX_AUTH_SYNC_SERVER_URL } else { "https://app.koofr.net/dav/Koofr" }),
   [string]$Username = $env:CODEX_AUTH_SYNC_WEBDAV_USERNAME,
+  [string]$WebDAVPassword = $env:CODEX_AUTH_SYNC_WEBDAV_PASSWORD,
   [string]$SyncKey = $env:CODEX_AUTH_SYNC_KEY,
   [string]$Cluster = $(if ($env:CODEX_AUTH_SYNC_CLUSTER_ID) { $env:CODEX_AUTH_SYNC_CLUSTER_ID } else { "personal" }),
   [ValidateSet("local", "group", "global")]
@@ -12,7 +13,8 @@ param(
   [string]$Role = $(if ($env:CODEX_AUTH_SYNC_ROLE) { $env:CODEX_AUTH_SYNC_ROLE } else { "auto" }),
   [string]$ReplacementCluster = $env:CODEX_AUTH_SYNC_REPLACEMENT_CLUSTER,
   [string]$Repository = "morp-ai/codex-auth-sync",
-  [switch]$SkipCodexInstall
+  [switch]$SkipCodexInstall,
+  [switch]$NoService
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,7 +32,6 @@ function Read-PlainSecret([string]$Prompt) {
 if ([string]::IsNullOrWhiteSpace($Username)) {
   $Username = Read-Host -Prompt "WebDAV username"
 }
-$WebDAVPassword = $env:CODEX_AUTH_SYNC_WEBDAV_PASSWORD
 if ([string]::IsNullOrWhiteSpace($WebDAVPassword)) {
   $WebDAVPassword = Read-PlainSecret "WebDAV app password"
 }
@@ -292,12 +293,20 @@ if ($LASTEXITCODE -ne 0) { throw "The first synchronization failed." }
 & $SyncBinary status
 if ($LASTEXITCODE -ne 0) { throw "Synchronization status validation failed." }
 
-$serviceScript = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/$Repository/main/scripts/install-service.ps1"
-& ([scriptblock]::Create($serviceScript)) -BinaryPath $SyncBinary -ConfigPath $ConfigPath
+if (-not $NoService) {
+  $serviceScript = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/$Repository/main/scripts/install-service.ps1"
+  & ([scriptblock]::Create($serviceScript)) -BinaryPath $SyncBinary -ConfigPath $ConfigPath
+} else {
+  Write-Output "Background task installation skipped."
+  Write-Output "Run 'codex-auth-sync now' whenever an immediate synchronization is needed."
+}
 
 Write-Output "Bootstrap complete."
 Write-Output "Role: $Role"
 Write-Output "Cluster: $Cluster"
-Write-Output "The synchronization task starts at Windows sign-in."
+if (-not $NoService) {
+  Write-Output "The synchronization task starts at Windows sign-in."
+}
 Write-Output "Run 'codex-auth list' to view synchronized accounts."
+Write-Output "Run 'codex-auth-sync now' to synchronize immediately."
 Write-Output "Run 'codex-auth-sync status' to verify synchronization health."
