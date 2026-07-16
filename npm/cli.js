@@ -9,14 +9,18 @@ import { fileURLToPath } from "node:url";
 import { releaseAsset } from "./release.js";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
-let binary;
+const binary = path.join(directory, "native", releaseAsset(process.platform, process.arch));
 try {
-  binary = path.join(directory, "native", releaseAsset(process.platform, process.arch));
   await access(binary, process.platform === "win32" ? constants.F_OK : constants.X_OK);
 } catch (error) {
-  console.error(`Error: native codex-auth-sync binary is unavailable: ${error.message}`);
-  console.error("Reinstall with: npm install -g git+https://github.com/morp-ai/codex-auth-sync.git");
-  process.exit(1);
+  await import("./install.js");
+  try {
+    await access(binary, process.platform === "win32" ? constants.F_OK : constants.X_OK);
+  } catch {
+    console.error(`Error: native codex-auth-sync binary is unavailable: ${error.message}`);
+    console.error("Reinstall with: npm install -g git+https://github.com/morp-ai/codex-auth-sync.git");
+    process.exit(1);
+  }
 }
 
 const child = spawn(binary, process.argv.slice(2), { stdio: "inherit", windowsHide: false });

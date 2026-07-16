@@ -23,7 +23,7 @@ npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
 codex-auth-sync version
 ```
 
-The package identity is `@morp-ai/codex-auth-sync`, but no npm registry login is needed for this GitHub installation. Its post-install step selects Linux, macOS, or Windows and x64 or arm64, downloads the native binary from the matching GitHub Release, verifies it against `checksums.txt`, and exposes `codex-auth-sync` through npm's global command directory.
+The package identity is `@morp-ai/codex-auth-sync`, but no npm registry login is needed for this GitHub installation. npm exposes `codex-auth-sync` through its global command directory. On the first invocation, the launcher selects Linux, macOS, or Windows and x64 or arm64, downloads the native binary from the matching GitHub Release, and verifies it against `checksums.txt`.
 
 The npm layer contains no account synchronization implementation and has no dependency on `codex-auth`; it only launches the verified Go binary. Existing configuration in the platform's normal `codex-auth-sync` configuration directory continues to work.
 

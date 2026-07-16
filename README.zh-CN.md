@@ -13,7 +13,7 @@
 
 ## 最快开始：WebDAV
 
-如果服务器已有 Node.js 和 npm，可以直接从 GitHub 以 npm 方式安装。npm 会生成全局短命令，并自动下载、校验当前平台对应的原生 Release 二进制：
+如果服务器已有 Node.js 和 npm，可以直接从 GitHub 以 npm 方式安装。npm 会生成全局短命令；第一次运行时自动下载、校验当前平台对应的原生 Release 二进制：
 
 ```sh
 npm install -g git+https://github.com/morp-ai/codex-auth-sync.git
